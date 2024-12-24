@@ -3,6 +3,16 @@ import pygame
 import os
 import random
 
+
+"""
+No Pygame: 
+- Para a direita: X +
+- Para a esquerda: X -
+- Para cima: Y -
+- Para baixo: Y +
+"""
+
+
 TELA_LARGURA = 500
 TELA_ALTURA = 800
 
@@ -44,6 +54,40 @@ class Passaro:
         self.contagem_imagem = 0 # servirá para saber qual a imagem do passaro (bird1, bird2 ou bird3)
         
         self.imagem = IMGS[0]
+
+    def pular(self):
+        self.velocidade = -10.5
+        self.tempo = 0
+        self.altura = self.y
+
+    def mover(self):
+        # Calcular o deslocamento
+        self.tempo += 1
+
+        # formula do SORVETÃO do ensino médio para calcular o deslocamento
+        # S = so + vot + at^2/2
+        deslocamento = 1.5 * (self.tempo ** 2) + self.velocidade * self.tempo
+
+
+        # Restringir o deslocamento
+        if deslocamento > 16:
+            deslocamento = 16
+
+        elif deslocamento < 0:
+            deslocamento -= 2
+
+        self.y += deslocamento
+
+
+        # O angulo do passaro
+        if deslocamento < 0 or self.y < (self.altura + 50):
+            if self.angulo < self.ROTACAO_MAXIMA:
+                self.angulo = self.ROTACAO_MAXIMA
+
+        else:
+            if self.angulo > -90:
+                self.angulo -= self.VELOCIDADE_ROTACAO
+
 
 class Cano:
     pass
