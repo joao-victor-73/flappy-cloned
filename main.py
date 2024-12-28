@@ -17,7 +17,7 @@ TELA_LARGURA = 500
 TELA_ALTURA = 800
 
 # Instânciando as imagens do jogo
-IMAGEM_CANO = pygame.transform.scale2x(pygame.image.load(os.path.join('imagens', 'pine.png')))
+IMAGEM_CANO = pygame.transform.scale2x(pygame.image.load(os.path.join('imagens', 'pipe.png')))
 IMAGEM_CHAO = pygame.transform.scale2x(pygame.image.load(os.path.join('imagens', 'base.png')))
 IMAGEM_BACKGROUND = pygame.transform.scale2x(pygame.image.load(os.path.join('imagens', 'bg.png')))
 IMAGENS_PASSARO = [
@@ -60,7 +60,7 @@ class Passaro:
         self.tempo = 0
         self.altura = self.y
 
-    def mover(self):
+    def mover_passaro(self):
         # Calcular o deslocamento
         self.tempo += 1
 
@@ -88,7 +88,7 @@ class Passaro:
             if self.angulo > -90:
                 self.angulo -= self.VELOCIDADE_ROTACAO
 
-    def desenhar(self, tela):
+    def desenhar_passaro(self, tela):
         # definir qual imagem do passaro vai usar
         self.contagem_imagem += 1
 
@@ -119,7 +119,7 @@ class Passaro:
         tela.blit(imagem_rotacionada, retangulo.topleft)
 
     def get_mask(self):
-        pygame.mask.from_surface(self.imagem)
+        return pygame.mask.from_surface(self.imagem)
 
 class Cano:
     # Essa distância é entre o cano de cima e o de baixo
@@ -146,5 +146,131 @@ class Cano:
         self.pos_base = self.altura + self.DISTANCIA
 
 
+    def mover_cano(self):
+        self.x -= self.VELOCIDADE
+
+    
+    def desenhar_cano(self, tela):
+        tela.blit(self.CANO_TOPO, (self.x, self.pos_topo))
+        tela.blit(self.CANO_BASE, (self.x, self.pos_base))
+
+    
+    def colidir(self, passaro):
+        passaro_mask = passaro.get_mask()
+        topo_mask = pygame.mask.from_surface(self.CANO_TOPO)
+        base_mask = pygame.mask.from_surface(self.CANO_BASE)
+
+        distancia_topo = (self.x - passaro.x, self.pos_topo - round(passaro.y))
+        distancia_base = (self.x - passaro.x, self.pos_base - round(passaro.y))
+
+        base_ponto = passaro_mask.overlap(base_mask, distancia_base)
+        topo_ponto = passaro_mask.overlap(topo_mask, distancia_topo)
+
+        if base_ponto or topo_ponto:
+            return True
+        else:
+            return False
+
+
 class Chao:
-    pass
+    VELOCIDADE_CHAO = 5
+    LARGURA_CHAO = IMAGEM_CHAO.get_width()
+    IMG_CHAO = IMAGEM_CHAO
+
+    def __init__ (self, y):
+        self.y = y
+        self.x0 = 0
+        self.x1 = self.LARGURA_CHAO 
+        # x0 = é o chão 1 / x1 = é o chão 2
+
+    def mover_chao(self):
+        self.x0 -= self.VELOCIDADE_CHAO
+        self.x1 -= self.VELOCIDADE_CHAO
+
+        if self.x0 + self.LARGURA_CHAO < 0:
+            self.x0 = self.x0 + self.LARGURA_CHAO
+        
+        if self.x1 + self.LARGURA_CHAO < 0:
+            self.x1 = self.x1 + self.LARGURA_CHAO
+
+    def desenhar_chao(self, tela):
+        tela.blit(self.IMG_CHAO, (self.x0, self.y))
+        tela.blit(self.IMG_CHAO, (self.x1, self.y))
+
+
+# PROGRAMA PRINCIPAL
+def desenhar_tela(tela, passaros, canos, chao, pontos):
+    tela.blit(IMAGEM_BACKGROUND, (0, 0))
+    
+    for passaro in passaros:
+        passaro.desenhar_passaro(tela)
+
+    for cano in canos:
+        cano.desenhar_cano(tela)
+
+    texto = FONTE_PONTOS.render(f"PONTUAÇÃO: {pontos}", 1, (255, 255, 255))
+    tela.blit(texto, (TELA_LARGURA - 10 - texto.get_width(), 10))
+
+    chao.desenhar_chao(tela)
+
+    pygame.display.update()
+
+
+def main():
+    passaros = [Passaro(230, 350)]
+    chao = Chao(730)
+    canos = [Cano(700)]
+    tela = pygame.display.set_mode((TELA_LARGURA, TELA_ALTURA))
+    pontos = 0
+    relogio = pygame.time.Clock()
+
+    while True:
+        relogio.tick(30)
+
+        for evento in pygame.event.get():
+            if evento.type == pygame.constants.QUIT:
+                pygame.quit()
+                quit()
+                break
+
+            if evento.type == pygame.KEYDOWN:
+                if evento.key == pygame.K_SPACE:
+                    for passaro in passaros:
+                        passaro.pular()
+
+
+        for passaro in passaros:
+            passaro.mover_passaro()
+        chao.mover_chao()
+
+        adicionar_cano = False
+        remover_canos = []
+        for cano in canos:
+            for i, passaro in enumerate(passaros):
+                if cano.colidir(passaro):
+                    passaros.pop(i)
+                
+                if not cano.passou and passaro.x > cano.x:
+                    cano.passou  = True
+                    adicionar_cano = True
+            
+            cano.mover_cano()
+            if cano.x + cano.CANO_TOPO.get_width() < 0:
+                remover_canos.append(cano)
+
+        if adicionar_cano:
+            pontos += 1
+            canos.append(Cano(600))
+
+        for cano in remover_canos:
+            canos.remove(cano)
+
+        for i, passaro in enumerate(passaros):
+            if (passaro.y + passaro.imagem.get_height()) > chao.y or passaro.y < 0:
+                passaros.pop(i)
+
+        desenhar_tela(tela, passaros, canos, chao, pontos)
+
+
+if __name__ == '__main__':
+    main()
